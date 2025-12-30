@@ -1,0 +1,67 @@
+<div class="bg-white p-8 rounded-xl shadow-card border border-slate-100">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">高性能 Python：使用 PyBind11 封装 C++ 图算法</h2>
+        <div class="flex items-center gap-3 text-xs text-slate-500 mb-4 font-mono">
+            <span>2023.09.15</span>
+            <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+            <span class="text-indigo-600">技术随笔</span>
+        </div>
+    </div>
+    
+    <div class="prose prose-slate max-w-none">
+        <p>在构建大规模图计算系统时，纯 Python 往往成为性能瓶颈。通过 PyBind11，我们可以无缝地将 C++ 的高性能计算能力引入 Python 生态系统。</p>
+        
+        <h3>1. PyBind11 简介</h3>
+        <p>PyBind11 是一个轻量级的 C++ 库，用于将 C++ 代码暴露给 Python。它具有以下特点：</p>
+        <ul>
+            <li>简单易用的 API</li>
+            <li>支持 C++11 及以上版本</li>
+            <li>自动处理类型转换</li>
+            <li>无需编写大量胶水代码</li>
+        </ul>
+        
+        <h3>2. 封装 C++ 图算法的步骤</h3>
+        <ol>
+            <li>编写 C++ 图算法实现</li>
+            <li>使用 PyBind11 定义 Python 接口</li>
+            <li>编译为 Python 扩展模块</li>
+            <li>在 Python 中使用封装的算法</li>
+        </ol>
+        
+        <h3>3. 性能对比</h3>
+        <p>我们对相同的图算法分别用纯 Python 和 C++ 实现，并使用 PyBind11 封装。性能测试结果显示：</p>
+        <ul>
+            <li>BFS 算法：C++ 版本比 Python 版本快 50 倍</li>
+            <li>Dijkstra 算法：C++ 版本比 Python 版本快 80 倍</li>
+            <li>PageRank 算法：C++ 版本比 Python 版本快 100 倍</li>
+        </ul>
+        
+        <h3>4. 最佳实践</h3>
+        <p>在使用 PyBind11 封装 C++ 代码时，需要注意以下几点：</p>
+        <ul>
+            <li>合理设计接口，保持 Pythonic</li>
+            <li>注意内存管理，避免内存泄漏</li>
+            <li>使用类型标注提高代码可读性</li>
+            <li>编写详细的文档和示例</li>
+        </ul>
+    </div>
+    
+    <div class="mt-8 flex justify-between items-center">
+        <button class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50" onclick="hideBlogDetail()">
+            <i class="fas fa-arrow-left"></i>
+            返回博客列表
+        </button>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">分享：</span>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weixin"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weibo"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+    </div>
+</div>
