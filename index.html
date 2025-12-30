@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP | 软件开发者 & AI 研究者</title>
+    <script src="js/tailwindcss.js"></script>
+    <script src="js/three.min.js"></script>
+    <!-- OrbitControls for manual rotation (disabled - local file not available) -->
+    <!-- <script src="js/OrbitControls.js"></script> -->
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Local fonts (to be downloaded separately) -->
+    <!-- <link href="fonts/fonts.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #334155;
+            overflow-x: hidden;
+        }
+
+        .page-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            animation: fadeIn 0.5s ease-out forwards;
+            padding-top: 40px;
+            min-height: 100vh;
+        }
+        
+        .page-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .nav-item.active {
+            color: #0284c7;
+            font-weight: 600;
+        }
+        .nav-item.active::after {
+            width: 100%;
+        }
+
+        .hover-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-color: #bae6fd;
+        }
+
+        .link-hover {
+            position: relative;
+            text-decoration: none;
+        }
+        .link-hover::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: #0ea5e9;
+            transition: width 0.3s ease;
+        }
+        .link-hover:hover::after {
+            width: 100%;
+        }
+
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+        }
+        
+        /* ID Card Styles */
+        .id-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.12);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Give the card a subtle thickness/edge */
+        .id-card::before {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 8px;
+            bottom: 8px;
+            width: 8px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(14,165,233,0.06), rgba(2,132,199,0.12));
+            transform: translateZ(-1px);
+            pointer-events: none;
+        }
+
+        /* Two-section lanyard that passes through the card */
+        .lanyard-left {
+            position: absolute;
+            left: 50%;
+            top: 12px;
+            width: 130px;
+            height: 18px;
+            transform-origin: right center;
+            transform: translateX(-90%) rotate(45deg);
+            border-radius: 8px 0 0 8px;
+            background: linear-gradient(90deg, #0ea5e9, #0284c7);
+            z-index: 8;
+            box-shadow: 0 6px 14px rgba(2,132,199,0.15);
+            pointer-events: none;
+            /* Cut the bottom (far end) horizontally, keeping top width unchanged */
+            clip-path: polygon(0 0, 100% 0, 86.5% 100%, 0 100%);
+        }
+        
+        .lanyard-right {
+            position: absolute;
+            left: 50%;
+            top: 12px;
+            width: 130px;
+            height: 18px;
+            transform-origin: left center;
+            transform: translateX(0) rotate(-45deg);
+            border-radius: 0 8px 8px 0;
+            background: linear-gradient(90deg, #0ea5e9, #0284c7);
+            z-index: 15;
+            box-shadow: 0 6px 14px rgba(2,132,199,0.15);
+            pointer-events: none;
+            /* Cut the bottom (far end) horizontally, keeping top width unchanged */
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 13.5% 100%);
+            /*clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);*/
+        }
+
+        /* card-slot is a small opening where lanyard passes through */
+        .card-slot {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 60px;
+            height: 10px;
+            transform: translateX(-50%);
+            border-radius: 3px;
+            overflow: hidden;
+            z-index: 25;
+            pointer-events: none;
+            background: rgba(255,255,255,0.9);
+            box-shadow: inset 0 1px 0 rgba(0,0,0,0.04);
+            display: none;
+        }
+        
+        /* Connector that shows the lanyard passing through the slot */
+        .card-slot .slot-connector {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 60px;
+            height: 18px;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #0ea5e9, #0284c7);
+            /* Trapezoid shape that connects the two lanyard sections */
+            clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
+            z-index: 14;
+            display: none;
+        }
+        /* Logo Pulse: inner dot only (breathing) */
+        .logo-pulse {
+            transform-origin: 50% 50%;
+            animation: pulse-dot 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.92; }
+        }
+
+        /* Shimmer for logo stroke (subtle moving highlight) */
+        .logo-shimmer {
+            stroke-dasharray: 120;
+            stroke-dashoffset: 120;
+            animation: dash 2.5s linear infinite;
+        }
+        @keyframes dash {
+            0% { stroke-dashoffset: 120; }
+            50% { stroke-dashoffset: 60; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        /* P stroke shimmer variant and stroke pulsing */
+        .logo-shimmer-p {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: dashP 3s linear infinite;
+        }
+        @keyframes dashP {
+            0% { stroke-dashoffset: 100; }
+            50% { stroke-dashoffset: 50; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        .logo-pulse-stroke {
+            transform-origin: 50% 50%;
+            animation: strokePulse 2.2s ease-in-out infinite;
+        }
+        @keyframes strokePulse {
+            0%, 100% { stroke-width: 8; opacity: 1; }
+            50% { stroke-width: 10; opacity: 0.95; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-grid">
+
+    <!-- SVG mask defs for card slot (invisible, used by CSS mask) -->
+    <svg width="0" height="0" style="position:absolute;">
+        <defs>
+            <mask id="card-slot-mask" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox">
+                <!-- white = visible, black = transparent (hole) -->
+                <rect x="0" y="0" width="1" height="1" fill="white" />
+                <!-- small rounded rect near the top-center (relative coords) -->
+                <rect x="0.46" y="0.02" width="0.08" height="0.03" rx="0.02" ry="0.02" fill="black" />
+            </mask>
+        </defs>
+    </svg>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo (C encloses circle, P close, Dot pulses) -->
+                <div class="flex-shrink-0 flex items-center cursor-pointer" onclick="navigateTo('home')">
+                    <div class="w-10 h-10 relative group">
+                        <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-sm" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="gradC" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#38bdf8" />
+                                    <stop offset="100%" stop-color="#0284c7" />
+                                </linearGradient>
+                                <linearGradient id="gradP" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#7dd3fc" />
+                                    <stop offset="100%" stop-color="#0ea5e9" />
+                                </linearGradient>
+                                <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+                                    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                            </defs>
+
+                            <!-- C: slightly smaller and shifted right so its opening nicely frames P's stem with a small gap -->
+                            <path d="M52,24 A22,22 0 0,0 52,76" fill="none" stroke="#0ea5e9" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+
+                            <!-- Center Circle (static) -->
+                            <circle cx="50" cy="50" r="12" stroke="#0ea5e9" stroke-width="2" fill="none" />
+
+                            <!-- Pulsing Dot (breathing) -->
+                            <circle cx="50" cy="50" r="5" fill="#0284c7" class="logo-pulse" />
+
+                            <!-- P: filled stem (rounded rect) + bowl (static stroke) at same height as C, single static color -->
+                            <rect x="70" y="24" width="6" height="56" rx="3" fill="#0ea5e9" />
+                            <path d="M73,24 C93,24 93,50 73,48" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <span class="font-bold text-xl text-slate-800 tracking-tight ml-2">CP<span class="text-brand-600">.Workshop</span></span>
+                </div>
+
+                <!-- Desktop Menu -->
+                <nav class="hidden md:flex space-x-8">
+                    <a href="#home" onclick="navigateTo('home', event)" class="nav-item text-slate-600 hover:text-brand-600 transition-colors relative py-2 text-sm font-medium">首页</a>
+                    <a href="#about" onclick="navigateTo('about', event)" class="nav-item text-slate-600 hover:text-brand-600 transition-colors relative py-2 text-sm font-medium">关于我</a>
+                    <a href="#portfolio" onclick="navigateTo('portfolio', event)" class="nav-item text-slate-600 hover:text-brand-600 transition-colors relative py-2 text-sm font-medium">作品集</a>
+                    <a href="#blog" onclick="navigateTo('blog', event)" class="nav-item text-slate-600 hover:text-brand-600 transition-colors relative py-2 text-sm font-medium">博客</a>
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <div class="flex items-center md:hidden">
+                    <button id="mobile-menu-btn" class="text-slate-500 hover:text-brand-600 focus:outline-none p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Panel -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-slate-200 absolute w-full shadow-lg">
+            <div class="px-4 pt-2 pb-4 space-y-1">
+                <a href="#home" onclick="navigateTo('home', event)" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-brand-600 hover:bg-brand-50">首页</a>
+                <a href="#about" onclick="navigateTo('about', event)" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-brand-600 hover:bg-brand-50">关于我</a>
+                <a href="#portfolio" onclick="navigateTo('portfolio', event)" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-brand-600 hover:bg-brand-50">作品集</a>
+                <a href="#blog" onclick="navigateTo('blog', event)" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-brand-600 hover:bg-brand-50">博客</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full">
+
+        <!-- ================= PAGE: HOME ================= -->
+        <div id="page-home" class="page-section active">
+            <div class="grid md:grid-cols-12 gap-12 items-center min-h-[80vh]">
+                
+                <!-- Left: Intro -->
+                <div class="md:col-span-7 space-y-6 order-2 md:order-1">
+                    <div class="inline-flex items-center px-3 py-1 rounded-full bg-brand-100 text-brand-700 text-xs font-semibold uppercase tracking-wide">
+                        <span class="w-2 h-2 bg-brand-500 rounded-full mr-2 animate-pulse"></span>
+                        软件开发 | 复杂系统 | 神经网络研究者
+                    </div>
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 leading-tight">
+                        您好，我是 <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-blue-600">常普</span>
+                    </h1>
+                    <p>
+                        <p class="text-lg text-slate-600 leading-relaxed max-w-2xl">致力于探索人工智能的边界。</p>
+                        <p class="text-lg text-slate-600 leading-relaxed max-w-2xl">我专注于将复杂的<strong>深度学习理论</strong>转化为优雅的<strong>工程解决方案</strong>。在这里，我分享我的代码、研究以及关于未来的思考。</p>  
+                    </p>
+                    <div class="flex flex-wrap gap-4 pt-4">
+                        <button onclick="navigateTo('portfolio')" class="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white font-medium rounded-lg shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5">
+                            浏览作品
+                        </button>
+                        <button onclick="navigateTo('about')" class="px-6 py-3 bg-white border border-slate-200 text-slate-700 hover:border-brand-300 hover:text-brand-600 font-medium rounded-lg transition-all">
+                            了解更多
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: 3D ID Card with Avatar -->
+                <div class="md:col-span-5 flex justify-center items-center relative h-[500px] order-1 md:order-2">
+                    
+                    <!-- The ID Card Container -->
+                    <div id="id-card-container" class="relative w-80 h-[450px] perspective-1000">
+                        
+                        <!-- Two-section lanyard that forms an upward V-shape -->
+                        <div class="lanyard-left" aria-hidden="true"></div>
+                        <div class="lanyard-right" aria-hidden="true"></div>
+                        <!-- Slot where lanyard passes through the card -->
+                        <div class="card-slot" aria-hidden="true"></div>
+                        
+                        <!-- The Card Itself -->
+                        <div id="id-card" class="id-card absolute inset-0 w-full h-full rounded-3xl overflow-hidden flex flex-col p-6 z-10">
+                            <!-- Card Header -->
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold">CP</div>
+                                    <div>
+                                        <div class="text-xs text-slate-400 font-mono">STUDENT ID</div>
+                                        <div class="font-bold text-slate-800">3201901234</div>
+                                    </div>
+                                </div>
+                                <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
+                                    <i class="fas fa-fingerprint"></i>
+                                </div>
+                            </div>
+
+                            <!-- Barcode Sticker (Absolute Positioned on Top Surface) -->
+                            <div class="absolute top-28 right-6 w-14 h-60 bg-white rounded-lg overflow-hidden z-20">
+                                <!-- Vertical barcode lines with varying vertical widths -->
+                                <div class="absolute inset-0 flex flex-col items-stretch gap-0.1 p-1">
+                                    <div class="h-1 bg-brand-500 animate-pulse" style="animation-delay: 0s;"></div>
+                                    <div class="h-3 bg-brand-600 animate-pulse" style="animation-delay: 0.05s;"></div>
+                                    <div class="h-1 bg-brand-400 animate-pulse" style="animation-delay: 0.1s;"></div>
+                                    <div class="h-2 bg-brand-700 animate-pulse" style="animation-delay: 0.15s;"></div>
+                                    <div class="h-4 bg-brand-300 animate-pulse" style="animation-delay: 0.2s;"></div>
+                                    <div class="h-1 bg-brand-500 animate-pulse" style="animation-delay: 0.25s;"></div>
+                                    <div class="h-2 bg-brand-600 animate-pulse" style="animation-delay: 0.3s;"></div>
+                                    <div class="h-1 bg-brand-400 animate-pulse" style="animation-delay: 0.35s;"></div>
+                                    <div class="h-5 bg-brand-700 animate-pulse" style="animation-delay: 0.4s;"></div>
+                                    <div class="h-1 bg-brand-500 animate-pulse" style="animation-delay: 0.45s;"></div>
+                                    <div class="h-3 bg-brand-300 animate-pulse" style="animation-delay: 0.5s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 0.55s;"></div>
+                                    <div class="h-4 bg-brand-400 animate-pulse" style="animation-delay: 0.6s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 0.65s;"></div>
+                                    <div class="h-2 bg-brand-500 animate-pulse" style="animation-delay: 0.7s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 0.75s;"></div>
+                                    <div class="h-3 bg-brand-400 animate-pulse" style="animation-delay: 0.8s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 0.85s;"></div>
+                                    <div class="h-2 bg-brand-300 animate-pulse" style="animation-delay: 0.9s;"></div>
+                                    <div class="h-5 bg-brand-500 animate-pulse" style="animation-delay: 0.95s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 1.0s;"></div>
+                                    <div class="h-2 bg-brand-400 animate-pulse" style="animation-delay: 1.05s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 1.1s;"></div>
+                                    <div class="h-5 bg-brand-700 animate-pulse" style="animation-delay: 0.4s;"></div>
+                                    <div class="h-1 bg-brand-500 animate-pulse" style="animation-delay: 0.45s;"></div>
+                                    <div class="h-3 bg-brand-300 animate-pulse" style="animation-delay: 0.5s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 0.55s;"></div>
+                                    <div class="h-4 bg-brand-400 animate-pulse" style="animation-delay: 0.6s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 0.65s;"></div>
+                                    <div class="h-2 bg-brand-500 animate-pulse" style="animation-delay: 0.7s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 0.75s;"></div>
+                                    <div class="h-3 bg-brand-400 animate-pulse" style="animation-delay: 0.8s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 0.85s;"></div>
+                                    <div class="h-4 bg-brand-500 animate-pulse" style="animation-delay: 1.15s;"></div>
+                                    <div class="h-1 bg-brand-600 animate-pulse" style="animation-delay: 1.2s;"></div>
+                                    <div class="h-3 bg-brand-400 animate-pulse" style="animation-delay: 1.25s;"></div>
+                                    <div class="h-1 bg-brand-700 animate-pulse" style="animation-delay: 1.3s;"></div>
+                                    <div class="h-2 bg-brand-500 animate-pulse" style="animation-delay: 1.35s;"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Card Content: 3D Avatar (Photo Section Only) -->
+                            <div class="flex-1 flex items-start justify-between gap-2 p-4">
+                                <!-- Avatar Container (Left with own background) -->
+                <div class="w-40 h-52 bg-gradient-to-b from-brand-50 to-white rounded-lg relative overflow-hidden border border-slate-200 shadow-sm">
+                    <img src="icons/avatar.png" class="w-full h-full object-cover" title="学生照片" alt="Student Avatar">
+                    <div class="absolute bottom-1 left-1 text-[9px] text-slate-300 font-mono pointer-events-none">
+                        AVATAR
+                    </div>
+                </div>
+                                
+                                <!-- Empty space for barcode sticker -->
+                                <div class="flex-1"></div>
+                            </div>
+
+                            <!-- Card Footer -->
+                            <div class="mt-4 pt-2 border-t border-slate-100">
+                                <div class="text-sm font-bold text-slate-800">Chang Pu</div>
+                                <div class="text-xs text-slate-500">Computer Science & AI</div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <div class="flex gap-1">
+                                        <div class="w-6 h-6 bg-slate-800 rounded text-white text-[10px] flex items-center justify-center"><a href="https://github.com/cprgzn" class="fab fa-github"></a></div>
+                                        <div class="w-6 h-6 bg-blue-600 rounded text-white text-[10px] flex items-center justify-center"><a href="https://www.linkedin.com/in/cprgzn/" class="fab fa-linkedin"></a></div>
+                                    </div>
+                                    <div class="text-[10px] text-brand-500 font-mono">EXP: 2026</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Highlights -->
+            <div class="mt-20">
+                <h3 class="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+                    <i class="fas fa-bolt text-yellow-400 mr-2"></i> 最新动态（建设中）
+                </h3>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 hover-card">
+                        <div class="text-xs font-mono text-slate-400 mb-2">2025.1.23</div>
+                        <h4 class="font-bold text-slate-800 mb-2">参与合作：论文被 ICLR 2025 接收</h4>
+                        <p class="text-sm text-slate-600">关于熵视角下激活函数优化问题的研究...</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 hover-card">
+                        <div class="text-xs font-mono text-slate-400 mb-2">2024.3.20</div>
+                        <h4 class="font-bold text-slate-800 mb-2">项目 AI4SDGs</h4>
+                        <p class="text-sm text-slate-600">重构了可视化仪表盘。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 hover-card">
+                        <div class="text-xs font-mono text-slate-400 mb-2">2023.08.05</div>
+                        <h4 class="font-bold text-slate-800 mb-2">区块链协会分享会</h4>
+                        <p class="text-sm text-slate-600">在协会活动室分享 "LLM + KG" 实践。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE: ABOUT (融合简历内容) ================= -->
+        <div id="page-about" class="page-section">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b border-slate-200">关于我</h2>
+                
+                <div class="grid md:grid-cols-12 gap-8">
+                    <!-- Left Column: Core Info (Sidebar style) -->
+                    <div class="md:col-span-4 space-y-6">
+                        <!-- Contact Card -->
+                        <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fas fa-address-card text-brand-500 mr-2"></i> 基本信息
+                            </h3>
+                            <ul class="space-y-3 text-sm text-slate-600">
+                                <li class="flex items-start">
+                                    <i class="fas fa-envelope w-5 text-slate-400 mt-0.5"></i>
+                                    <span>1756618633@qq.com</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-phone w-5 text-slate-400 mt-0.5"></i>
+                                    <span>+86 000-0000-0000</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fas fa-map-marker-alt w-5 text-slate-400 mt-0.5"></i>
+                                    <span>中国，安徽</span>
+                                </li>
+
+                            </ul>
+                        </div>
+
+                        <!-- Education -->
+                        <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fas fa-graduation-cap text-brand-500 mr-2"></i> 教育背景
+                            </h3>
+                            <div class="space-y-4">
+                                <div class="relative pl-4 border-l-2 border-brand-200">
+                                    <div class="text-sm font-bold text-slate-800">人工智能 (本科-主修)</div>
+                                    <div class="text-xs text-slate-500">安徽工程大学</div>
+                                    <div class="text-xs text-brand-600 mt-1">2020 - 2024 </div>
+                                    <div class="text-xs text-slate-400 mt-1">主修课程：数据结构、人工智能、机器学习、深度学习</div>
+                                </div>
+                                <div class="relative pl-4 border-l-2 border-brand-200">
+                                    <div class="text-sm font-bold text-slate-800">英语 (本科-辅修)</div>
+                                    <div class="text-xs text-slate-500">安徽工程大学</div>
+                                    <div class="text-xs text-brand-600 mt-1">2021 - 2024 </div>
+                                    <div class="text-xs text-slate-400 mt-1">主修课程：高级英语写作、国际商务函电、语言学概论</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Find Me -->
+                        <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fas fa-link text-brand-500 mr-2"></i> 找到我
+                            </h3>
+                            <ul class="space-y-3 text-sm text-slate-600">
+                                <li class="flex items-center">
+                                    <i class="fab fa-github w-5 h-5 flex items-center justify-center text-slate-400"></i>
+                                    <a href="https://github.com/cprgzn" class="text-brand-600 hover:underline ml-3">GitHub-cprgzn</a>
+                                </li>
+                                <li class="flex items-center">
+                                    <i class="fab fa-bilibili w-5 h-5 flex items-center justify-center text-slate-400"></i>
+                                    <a href="https://space.bilibili.com/630002310" class="text-brand-600 hover:underline ml-3">Bilibili-青藤才子</a>
+                                </li>
+                                <li class="flex items-center">
+                                    <div class="w-5 h-5 rounded-full bg-slate-300 flex items-center justify-center text-white text-[7px] font-bold">CSDN</div>
+                                    <a href="https://blog.csdn.net/cprgzn" class="text-brand-600 hover:underline ml-3">CSDN-青藤才子</a>
+                                </li>
+                                <li class="flex items-center">
+                                    <div class="w-5 h-5 rounded bg-slate-300 flex items-center justify-center text-white text-[5px] font-bold">小红书</div>
+                                    <a href="https://www.xiaohongshu.com/user/profile/624658b80000000010008001" class="text-brand-600 hover:underline ml-3">小红书-青藤才子</a>
+                                </li>
+                                <!-- <li class="flex items-center">
+                                    <i class="fab fa-weixin w-5 h-5 flex items-center justify-center text-slate-400"></i>
+                                    <a href="#" class="text-brand-600 hover:underline ml-3">qtczygpz123</a>
+                                </li>
+                                <li class="flex items-center">
+                                    <i class="fab fa-qq w-5 h-5 flex items-center justify-center text-slate-400"></i>
+                                    <a href="#" class="text-brand-600 hover:underline ml-3">1756618633</a>
+                                </li> -->
+                            </ul>
+                        </div>
+
+                        <!-- Skills -->
+                        <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fas fa-code text-brand-500 mr-2"></i> 技术栈
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-700 mb-1">编程语言</div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">Python</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">C++</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">JavaScript</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-700 mb-1">AI 框架</div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">PyTorch</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">TensorFlow</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">DGL</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-700 mb-1">开发工具</div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">Git</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">Docker</span>
+                                        <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">Linux</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Narrative Content -->
+                    <div class="md:col-span-8 space-y-8">
+                        <!-- Personal Statement -->
+                        <div class="bg-white p-8 rounded-xl shadow-card border border-slate-100">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4">个人陈述</h3>
+
+                            <p class="text-slate-600 leading-relaxed mb-4">
+                                我的研究兴趣主要集中在<strong>图神经网络 (GNN)</strong> 及其在<strong>知识图谱</strong> 中的应用。我相信，图结构是表示复杂关系最自然的方式，而 GNN 则是挖掘这些关系潜力的关键工具。我的本科毕业设计正是关于异构图神经网络的节点预测优化，目前已有初步成果。
+                            </p>
+                            <a href="cp-CV.pdf" class="inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700 hover:underline" target="_blank">
+                                <i class="fas fa-file-pdf mr-2"></i> 查看我的简历 (PDF)
+                            </a>
+                        </div>
+
+                        <!-- Research & Projects -->
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-6">研究经历与项目</h3>
+                            
+                            <!-- Project 1 -->
+                            <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 mb-6 hover-card">
+                                <div class="mb-2">
+                                    <h4 class="text-lg font-bold text-slate-800 mb-1">基于知识图谱和图神经网络的可持续发展目标预测模型（202310363020）<a href="https://cprgzn.github.io/SDGs-Web/" target="_blank"><i class="fab fa-github text-slate-400 ml-2"></i></a></h4>
+                                    <span class="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-1 rounded">国家级大创</span>
+                                </div>
+                                <p class="text-sm text-slate-500 mb-3">
+                                    2023.10 - 2024.5 | 第一主持人 | 指导教师：赵转哲教授
+                                </p>
+                                <ul class="list-disc list-inside text-sm text-slate-600 space-y-2 mb-4">
+                                    <li>结合 SDGs 预测场景需求，提出 "知识图谱 + 图神经网络" 的融合建模思路，设计对照实验方案验证模型可行性，尝试优化数据稀疏与模型可解释性相关问题；完成知识图谱构建（Neo4j）、图神经网络模型选型与参数调优，整理并处理 SDGs 领域相关数据 5000 余条，最终模型预测准确率达到 89%；</li>
+                                    <li>撰写结题报告（1.5万字）、毕设论文（2.5万字），成果转化为一作发明专利（实审）一篇、一作《智能城市应用》期刊论文一篇、相关研究内容在中国系统科学大会进行小组报告交流；</li>
+                                </ul>
+                                <div class="flex gap-2">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Python</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">PyTorch</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Pandas</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">DGL</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Neo4j</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Gephi</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">SHAP</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Tableau</span>
+                                </div>
+                            </div>
+
+                            <!-- Project 2 -->
+                            <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 mb-6 hover-card">
+                                <div class="mb-2">
+                                    <h4 class="text-lg font-bold text-slate-800 mb-1">基于联盟链的教学科研服务系统（202310363107）</h4>
+                                    <span class="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-1 rounded">国家级大创</span>
+                                </div>
+                                <p class="text-sm text-slate-500 mb-3">
+                                    2023.10 - 2024.5 | 项目成员 | 指导教师：邓寿年副教授
+                                </p>
+                                <ul class="list-disc list-inside text-sm text-slate-600 space-y-2 mb-4">
+                                    <li>参与技术架构设计，基于联盟链技术实现学术资源分布式管理，保障数据安全；</li>
+                                    <li>参与智能合约模块开发（Solidity语言），实现资源共享权限控制功能，成果转化为一作发明专利（实审）一篇；</li>
+                                </ul>
+                                <div class="flex gap-2">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">区块链</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Python</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">FISCO BCOS</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">WeBASE</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">MongoDB</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Node</span>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Docker</span>
+                                </div>
+                            </div>
+
+                            <!-- Project 3 -->
+                            <div class="bg-white p-6 rounded-xl shadow-card border border-slate-100 mb-6 hover-card">
+                                <div class="mb-2">
+                                    <h4 class="text-lg font-bold text-slate-800 mb-1">国际顶会合作项目：Entropy-based Activation Function Optimization（ICLR 2025）<a href="https://github.com/cprgzn/Contribution-statistics" target="_blank"><i class="fab fa-github text-slate-400 ml-2"></i></a></h4>
+                                    <span class="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-1 rounded">国际顶会</span>
+                                </div>
+                                <p class="text-sm text-slate-500 mb-3">
+                                    2024.10 - 2025.5 | 核心学生成员 | 与清华大学、天津大学相关课题组合作
+                                </p>
+                                <ul class="list-disc list-inside text-sm text-slate-600 space-y-2 mb-4">
+                                    <li>参与项目前期文献调研，协助梳理 "激活函数缺乏系统理论框架" 的问题，整理熵视角下激活函数优化的设计思路；</li>
+                                    <li>负责图像分类任务中部分对比实验的执行、协助数据预处理，模型训练流程搭建及实验结果记录（覆盖 CIFAR-10/100、ImageNet-1K 数据集），协助分析不同激活函数的性能差异；参与线上学术讨论，协助撰写英文实验部分，了解熟悉顶会论文写作规范；</li>
+                                    <li>成果以 post 形式被 AI 国际顶会 ICLR 接收，所提方法在图像分类、大语言模型微调任务中表现出优于传统激活函数的性能（如 CIFAR-10 任务中所提 CRReLU 激活函数准确率达 87.0%）；</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE: PORTFOLIO ================= -->
+        <div id="page-portfolio" class="page-section">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-slate-200 pb-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900">作品集</h2>
+                    <p class="text-slate-500 mt-2">精选的研究项目与软件开发案例</p>
+                </div>
+                <div class="flex gap-2 mt-4 md:mt-0">
+                    <button class="filter-btn active px-4 py-1.5 rounded-full text-sm font-medium bg-brand-100 text-brand-700 transition-colors" data-filter="all">全部</button>
+                    <button class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" data-filter="gnn">图神经网络项目</button>
+                    <button class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" data-filter="software">软件开发</button>
+                    <button class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors" data-filter="ai">AI工具</button>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="portfolio-grid">
+                <!-- Project 1 -->
+                <div class="project-card bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden hover-card group" data-category="gnn">
+                    <div class="h-40 bg-gradient-to-r from-brand-100 to-blue-100 relative p-6 flex items-center justify-center">
+                        <i class="fas fa-project-diagram text-6xl text-brand-300 group-hover:scale-110 transition-transform duration-300"></i>
+                        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs font-bold text-brand-600">国家级大创</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">SDGs预测模型</h3>
+                        <p class="text-sm text-slate-500 mb-4 line-clamp-2">基于知识图谱和图神经网络的可持续发展目标预测模型，结合SDGs预测场景需求，提出"知识图谱+图神经网络"的融合建模思路。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Python</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">PyTorch</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Neo4j</span>
+                        </div>
+                        <a href="https://cprgzn.github.io/SDGs-Web/" class="inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700" target="_blank">
+                            GitHub <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Project 2 -->
+                <div class="project-card bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden hover-card group" data-category="software">
+                    <div class="h-40 bg-gradient-to-r from-indigo-100 to-purple-100 relative p-6 flex items-center justify-center">
+                        <i class="fas fa-layer-group text-6xl text-indigo-300 group-hover:scale-110 transition-transform duration-300"></i>
+                        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs font-bold text-indigo-600">国家级大创</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">联盟链教学科研服务系统</h3>
+                        <p class="text-sm text-slate-500 mb-4 line-clamp-2">基于联盟链的教学科研服务系统，实现学术资源分布式管理，保障数据安全。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">区块链</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Python</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">FISCO BCOS</span>
+                        </div>
+                        <a href="#" class="inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700">
+                            查看详情 <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Project 3 -->
+                <div class="project-card bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden hover-card group" data-category="ai">
+                    <div class="h-40 bg-gradient-to-r from-teal-100 to-emerald-100 relative p-6 flex items-center justify-center">
+                        <i class="fas fa-brain text-6xl text-teal-300 group-hover:scale-110 transition-transform duration-300"></i>
+                        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-2 py-1 rounded text-xs font-bold text-teal-600">国际顶会</div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">CRReLU激活函数</h3>
+                        <p class="text-sm text-slate-500 mb-4 line-clamp-2">Entropy-based Activation Function Optimization，成果以post形式被AI国际顶会ICLR接收。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">Python</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">PyTorch</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">ICLR</span>
+                        </div>
+                        <a href="https://github.com/cprgzn/Contribution-statistics" class="inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700" target="_blank">
+                            GitHub <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE: BLOG ================= -->
+        <div id="page-blog" class="page-section">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900 mb-2">技术博客</h2>
+                <div id="breadcrumb" class="text-sm text-slate-500 mb-6 font-mono">
+                    <span>你的位置：</span>
+                    <a href="#blog" onclick="event.preventDefault(); hideBlogDetail();" class="text-brand-600 hover:text-brand-700">博客</a>
+                </div>
+                <div class="border-b border-slate-200 mb-8"></div>
+                
+                <div class="space-y-8">
+                    <article id="blog-1" class="flex flex-col md:flex-row gap-6 group cursor-pointer" onclick="showBlogDetail('blog-1')">
+                        <div class="md:w-48 h-32 bg-brand-100 rounded-lg flex-shrink-0 flex items-center justify-center text-brand-300">
+                            <i class="fas fa-newspaper text-4xl group-hover:scale-110 transition-transform"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 text-xs text-slate-500 mb-2 font-mono">
+                                <span>2023.10.24</span>
+                                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span class="text-brand-600">#AI</span>
+                                <span class="text-brand-600">#DeepLearning</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">超越 Transformer：图神经网络在长文本处理中的潜力</h3>
+                            <p class="text-slate-600 text-sm line-clamp-2">虽然 Transformer 架构统治了 NLP 领域，但在处理显式结构化知识时，图神经网络展现出了独特的优势。本文探讨了如何将 GNN 与注意力机制结合...</p>
+                        </div>
+                    </article>
+
+                    <hr class="border-slate-100">
+
+                    <article id="blog-2" class="flex flex-col md:flex-row gap-6 group cursor-pointer" onclick="showBlogDetail('blog-2')">
+                        <div class="md:w-48 h-32 bg-indigo-100 rounded-lg flex-shrink-0 flex items-center justify-center text-indigo-300">
+                            <i class="fas fa-laptop-code text-4xl group-hover:scale-110 transition-transform"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 text-xs text-slate-500 mb-2 font-mono">
+                                <span>2023.09.15</span>
+                                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span class="text-indigo-600">#Programming</span>
+                                <span class="text-indigo-600">#C++</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">高性能 Python：使用 PyBind11 封装 C++ 图算法</h3>
+                            <p class="text-slate-600 text-sm line-clamp-2">在构建大规模图计算系统时，纯 Python 往往成为性能瓶颈。通过 PyBind11，我们可以无缝地将 C++ 的高性能计算能力引入 Python 生态...</p>
+                        </div>
+                    </article>
+
+                    <hr class="border-slate-100">
+
+                    <article id="blog-3" class="flex flex-col md:flex-row gap-6 group cursor-pointer" onclick="showBlogDetail('blog-3')">
+                        <div class="md:w-48 h-32 bg-pink-100 rounded-lg flex-shrink-0 flex items-center justify-center text-pink-300">
+                            <i class="fas fa-paint-brush text-4xl group-hover:scale-110 transition-transform"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 text-xs text-slate-500 mb-2 font-mono">
+                                <span>2023.08.02</span>
+                                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span class="text-pink-600">#Design</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2 group-hover:text-brand-600 transition-colors">极简主义与复杂系统：UI 设计中的平衡艺术</h3>
+                            <p class="text-slate-600 text-sm line-clamp-2">面对功能日益复杂的 AI 工具，如何保持界面的简洁与直观？从认知负荷理论出发，探讨现代科技产品的设计哲学。</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="flex justify-center mt-12 space-x-2">
+                    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">上一页</button>
+                    <button class="px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium">1</button>
+                    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">2</button>
+                    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">下一页</button>
+                </div>
+
+                <!-- Dynamic Blog Detail Container -->
+                <div id="blog-detail-container" class="mt-12 blog-detail hidden">
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-12 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center text-slate-800 mb-4">
+                        <i class="fas fa-cube text-brand-500 mr-2"></i>
+                        <span class="font-bold text-lg">CP.Workshop</span>
+                    </div>
+                    <p class="text-sm leading-relaxed max-w-sm text-slate-500">
+                        探索人工智能与区块链技术的交汇点。致力于构建更智能、更交互、更高效的数字未来。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-slate-800 font-bold mb-4">快速链接</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" onclick="navigateTo('home', event)" class="text-slate-500 hover:text-brand-500 transition-colors">首页</a></li>
+                        <li><a href="#" onclick="navigateTo('about', event)" class="text-slate-500 hover:text-brand-500 transition-colors">关于我</a></li>
+                        <li><a href="#" onclick="navigateTo('portfolio', event)" class="text-slate-500 hover:text-brand-500 transition-colors">作品集</a></li>
+                        <li><a href="#" onclick="navigateTo('blog', event)" class="text-slate-500 hover:text-brand-500 transition-colors">博客</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-slate-800 font-bold mb-4">联系我</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-center">
+                            <i class="fab fa-github w-5 text-slate-400 hover:text-brand-500"></i>
+                            <a href="https://github.com/cprgzn" class="text-slate-500 hover:text-brand-500 transition-colors ml-2" target="_blank">GitHub</a>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fab fa-linkedin w-5 text-slate-400 hover:text-brand-500"></i>
+                            <a href="https://www.linkedin.com/in/cprgzn/" class="text-slate-500 hover:text-brand-500 transition-colors ml-2">LinkedIn</a>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-envelope w-5 text-slate-400 hover:text-brand-500"></i>
+                            <a href="mailto:1756618633@qq.com" class="text-slate-500 hover:text-brand-500 transition-colors ml-2">Email</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-slate-100 pt-8 text-center text-xs text-slate-400">
+                &copy; 2023 CP. All rights reserved. Designed with Tailwind CSS.
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. Navigation Logic ---
+        function navigateTo(pageId, event) {
+            if (event) event.preventDefault();
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            const targetPage = document.getElementById('page-' + pageId);
+            if (targetPage) {
+                targetPage.classList.add('active');
+                window.scrollTo(0, 0);
+            }
+            history.pushState(null, null, '#' + pageId);
+            updateNavState(pageId);
+            const mobileMenu = document.getElementById('mobile-menu');
+            if (!mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+            }
+        }
+
+        function updateNavState(pageId) {
+            document.querySelectorAll('.nav-item').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + pageId) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash.substring(1) || 'home';
+            navigateTo(hash);
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.substring(1) || 'home';
+            navigateTo(hash);
+        });
+
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // --- 2. Portfolio Filtering ---
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const projectCards = document.querySelectorAll('.project-card');
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => {
+                    b.classList.remove('bg-brand-100', 'text-brand-700');
+                    b.classList.add('bg-slate-100', 'text-slate-600');
+                });
+                btn.classList.remove('bg-slate-100', 'text-slate-600');
+                btn.classList.add('bg-brand-100', 'text-brand-700');
+
+                const filterValue = btn.getAttribute('data-filter');
+                projectCards.forEach(card => {
+                    if (filterValue === 'all' || card.getAttribute('data-category') === filterValue) {
+                        card.style.display = 'block';
+                        setTimeout(() => card.style.opacity = '1', 10);
+                    } else {
+                        card.style.display = 'none';
+                        card.style.opacity = '0';
+                    }
+                });
+            });
+        });
+
+        // --- 3. Card Interaction ---
+        function init3DAvatar() {
+            const cardContainer = document.getElementById('id-card-container');
+
+            // Card interaction: pendulum (swing) anchored at top center (where lanyard holds it)
+            if (cardContainer) {
+                const card = document.getElementById('id-card');
+                card.style.transformOrigin = '50% 12px';
+                card.style.transition = 'transform 0.12s ease-out';
+
+                // simple pendulum state
+                let angle = 0; // radians
+                let angularVelocity = 0;
+                const damping = 0.995; // moderate energy loss for realistic decay
+                const gravityFactor = 0.08; // stronger restoring force for more natural swing
+                let swinging = false;
+
+                function stepPendulum() {
+                    if (!swinging) return;
+                    // small-angle physics approximation with damping
+                    const accel = - gravityFactor * Math.sin(angle);
+                    angularVelocity += accel;
+                    angularVelocity *= damping;
+                    angle += angularVelocity;
+
+                    // convert to degrees and apply (limit)
+                    const deg = Math.max(Math.min(angle * (180/Math.PI), 45), -45);
+                    card.style.transform = `rotateZ(${deg}deg)`;
+
+                    // stop if motion is negligible
+                    if (Math.abs(angularVelocity) < 0.00005 && Math.abs(angle) < 0.0005) {
+                        swinging = false;
+                        card.style.transform = '';
+                        return;
+                    }
+                    requestAnimationFrame(stepPendulum);
+                }
+
+                // capture pointer flick velocity to start swing
+                let isPointerDown = false;
+                let lastX = 0;
+                let lastT = 0;
+
+                cardContainer.addEventListener('pointerdown', (e) => {
+                    isPointerDown = true;
+                    lastX = e.clientX;
+                    lastT = performance.now();
+                    swinging = false; // stop current swing while dragging
+                    card.style.transition = 'none';
+                });
+
+                cardContainer.addEventListener('pointerup', (e) => {
+                    if (!isPointerDown) return;
+                    isPointerDown = false;
+                    const now = performance.now();
+                    const dx = e.clientX - lastX;
+                    const dt = Math.max(16, now - lastT);
+                    const vx = dx / dt; // pixels per ms
+
+                    // start swing: map horizontal velocity to initial angular velocity
+                    angularVelocity = vx * 0.12; // increased mapping for snappier flicks
+                    angle = 0.03 * (Math.sign(angularVelocity) || 1); // small offset
+                    swinging = true;
+                    card.style.transition = 'transform 0.12s ease-out';
+                    requestAnimationFrame(stepPendulum);
+                });
+
+                // track last position while pointer is down
+                cardContainer.addEventListener('pointermove', (e) => {
+                    if (!isPointerDown) return;
+                    lastX = e.clientX;
+                    lastT = performance.now();
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init3DAvatar);
+
+        // Blog category mapping
+        const blogCategories = {
+            'blog-1': {
+                category: '技术随笔',
+                title: '超越 Transformer：图神经网络在长文本处理中的潜力'
+            },
+            'blog-2': {
+                category: '技术随笔',
+                title: '高性能 Python：使用 PyBind11 封装 C++ 图算法'
+            },
+            'blog-3': {
+                category: '设计思考',
+                title: '极简主义与复杂系统：UI 设计中的平衡艺术'
+            }
+        };
+
+        // Blog content storage
+        const blogContents = {
+            'blog-1': `<div class="bg-white p-8 rounded-xl shadow-card border border-slate-100">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">超越 Transformer：图神经网络在长文本处理中的潜力</h2>
+        <div class="flex items-center gap-3 text-xs text-slate-500 mb-4 font-mono">
+            <span>2023.10.24</span>
+            <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+            <span class="text-indigo-600">技术随笔</span>
+        </div>
+    </div>
+    
+    <div class="prose prose-slate max-w-none">
+        <p>虽然 Transformer 架构统治了 NLP 领域，但在处理显式结构化知识时，图神经网络展现出了独特的优势。本文探讨了如何将 GNN 与注意力机制结合，构建更强大的长文本理解模型。</p>
+        
+        <h3>1. Transformer 的局限性</h3>
+        <p>Transformer 模型通过自注意力机制能够捕捉文本中的长距离依赖关系，但在处理具有复杂结构的文本（如科学文献、法律文档）时，仍然存在一些局限性：</p>
+        <ul>
+            <li>计算复杂度随序列长度平方增长</li>
+            <li>难以显式建模实体间的层次关系</li>
+            <li>对结构化知识的利用效率不高</li>
+        </ul>
+        
+        <h3>2. 图神经网络的优势</h3>
+        <p>图神经网络（GNN）天然适合处理结构化数据：</p>
+        <ul>
+            <li>可以直接建模实体间的关系</li>
+            <li>支持任意长度的路径推理</li>
+            <li>能够有效融合外部知识图谱</li>
+        </ul>
+        
+        <h3>3. 融合模型架构</h3>
+        <p>我们提出了一种将 GNN 与 Transformer 结合的混合架构，通过以下方式实现长文本处理：</p>
+        <ol>
+            <li>使用 Transformer 编码文本的局部语义信息</li>
+            <li>将编码后的文本转换为图结构，实体作为节点，语义关系作为边</li>
+            <li>应用 GNN 进行全局结构推理</li>
+            <li>将 GNN 输出的结构化表示与 Transformer 输出融合</li>
+        </ol>
+        
+        <h3>4. 实验结果</h3>
+        <p>在长文档分类和问答任务上的实验表明，我们的混合模型在以下方面表现优异：</p>
+        <ul>
+            <li>长文本理解准确率提升 12-18%</li>
+            <li>训练效率提高 25%</li>
+            <li>能够更好地处理包含复杂结构的文档</li>
+        </ul>
+        
+        <h3>5. 未来展望</h3>
+        <p>融合 GNN 和 Transformer 的方法为长文本处理提供了新的思路。未来的研究方向包括：</p>
+        <ul>
+            <li>更高效的图构建算法</li>
+            <li>动态图结构的建模</li>
+            <li>多模态信息的融合</li>
+        </ul>
+    </div>
+    
+    <div class="mt-8 flex justify-between items-center">
+        <button class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50" onclick="hideBlogDetail()">
+            <i class="fas fa-arrow-left"></i>
+            返回博客列表
+        </button>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">分享：</span>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weixin"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weibo"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+    </div>
+</div>`,
+            'blog-2': `<div class="bg-white p-8 rounded-xl shadow-card border border-slate-100">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">高性能 Python：使用 PyBind11 封装 C++ 图算法</h2>
+        <div class="flex items-center gap-3 text-xs text-slate-500 mb-4 font-mono">
+            <span>2023.09.15</span>
+            <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+            <span class="text-indigo-600">技术随笔</span>
+        </div>
+    </div>
+    
+    <div class="prose prose-slate max-w-none">
+        <p>在构建大规模图计算系统时，纯 Python 往往成为性能瓶颈。通过 PyBind11，我们可以无缝地将 C++ 的高性能计算能力引入 Python 生态系统。</p>
+        
+        <h3>1. PyBind11 简介</h3>
+        <p>PyBind11 是一个轻量级的 C++ 库，用于将 C++ 代码暴露给 Python。它具有以下特点：</p>
+        <ul>
+            <li>简单易用的 API</li>
+            <li>支持 C++11 及以上版本</li>
+            <li>自动处理类型转换</li>
+            <li>无需编写大量胶水代码</li>
+        </ul>
+        
+        <h3>2. 封装 C++ 图算法的步骤</h3>
+        <ol>
+            <li>编写 C++ 图算法实现</li>
+            <li>使用 PyBind11 定义 Python 接口</li>
+            <li>编译为 Python 扩展模块</li>
+            <li>在 Python 中使用封装的算法</li>
+        </ol>
+        
+        <h3>3. 性能对比</h3>
+        <p>我们对相同的图算法分别用纯 Python 和 C++ 实现，并使用 PyBind11 封装。性能测试结果显示：</p>
+        <ul>
+            <li>BFS 算法：C++ 版本比 Python 版本快 50 倍</li>
+            <li>Dijkstra 算法：C++ 版本比 Python 版本快 80 倍</li>
+            <li>PageRank 算法：C++ 版本比 Python 版本快 100 倍</li>
+        </ul>
+        
+        <h3>4. 最佳实践</h3>
+        <p>在使用 PyBind11 封装 C++ 代码时，需要注意以下几点：</p>
+        <ul>
+            <li>合理设计接口，保持 Pythonic</li>
+            <li>注意内存管理，避免内存泄漏</li>
+            <li>使用类型标注提高代码可读性</li>
+            <li>编写详细的文档和示例</li>
+        </ul>
+    </div>
+    
+    <div class="mt-8 flex justify-between items-center">
+        <button class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50" onclick="hideBlogDetail()">
+            <i class="fas fa-arrow-left"></i>
+            返回博客列表
+        </button>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">分享：</span>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weixin"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weibo"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+    </div>
+</div>`,
+            'blog-3': `<div class="bg-white p-8 rounded-xl shadow-card border border-slate-100">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">极简主义与复杂系统：UI 设计中的平衡艺术</h2>
+        <div class="flex items-center gap-3 text-xs text-slate-500 mb-4 font-mono">
+            <span>2023.08.02</span>
+            <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+            <span class="text-pink-600">设计思考</span>
+        </div>
+    </div>
+    
+    <div class="prose prose-slate max-w-none">
+        <p>面对功能日益复杂的 AI 工具，如何保持界面的简洁与直观？从认知负荷理论出发，探讨现代科技产品的设计哲学。</p>
+        
+        <h3>1. 认知负荷理论</h3>
+        <p>认知负荷理论指出，人类的工作记忆容量有限。好的设计应该：</p>
+        <ul>
+            <li>减少无关的认知负荷</li>
+            <li>优化必要的认知负荷</li>
+            <li>促进生成性认知负荷</li>
+        </ul>
+        
+        <h3>2. 极简主义设计原则</h3>
+        <p>极简主义设计不仅仅是视觉上的简洁，还包括：</p>
+        <ul>
+            <li>功能的精简与聚焦</li>
+            <li>信息层级的清晰呈现</li>
+            <li>交互流程的简化</li>
+        </ul>
+        
+        <h3>3. 复杂系统的设计挑战</h3>
+        <p>AI 工具通常具有复杂的内部逻辑和多种功能，设计时需要平衡：</p>
+        <ul>
+            <li>功能的完整性与界面的简洁性</li>
+            <li>专家用户与新手用户的需求</li>
+            <li>灵活性与易用性</li>
+        </ul>
+        
+        <h3>4. 设计案例分析</h3>
+        <p>我们分析了几款优秀的 AI 工具设计，发现它们共同的特点：</p>
+        <ul>
+            <li>渐进式披露复杂功能</li>
+            <li>智能默认设置减少决策负担</li>
+            <li>清晰的反馈机制</li>
+            <li>一致的设计语言</li>
+        </ul>
+        
+        <h3>5. 设计哲学与实践</h3>
+        <p>在设计复杂系统时，我们应该遵循：</p>
+        <ul>
+            <li>以用户为中心的设计思维</li>
+            <li>迭代式设计与持续改进</li>
+            <li>数据驱动的设计决策</li>
+            <li>跨学科团队合作</li>
+        </ul>
+    </div>
+    
+    <div class="mt-8 flex justify-between items-center">
+        <button class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50" onclick="hideBlogDetail()">
+            <i class="fas fa-arrow-left"></i>
+            返回博客列表
+        </button>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">分享：</span>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weixin"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fab fa-weibo"></i>
+            </button>
+            <button class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+    </div>
+</div>`
+        };
+
+        // --- 4. Blog Detail Functions ---
+        function showBlogDetail(blogId) {
+            // Hide all blog articles
+            document.querySelectorAll('article[id^="blog-"]').forEach(article => {
+                article.style.display = 'none';
+            });
+            
+            // Hide pagination
+            document.querySelector('.flex.justify-center.mt-12.space-x-2').style.display = 'none';
+            
+            // Show the dynamic blog detail container
+            const blogDetailContainer = document.getElementById('blog-detail-container');
+            blogDetailContainer.classList.remove('hidden');
+            
+            // Load blog detail content from blogContents object
+            const html = blogContents[blogId];
+            if (html) {
+                blogDetailContainer.innerHTML = html;
+            } else {
+                blogDetailContainer.innerHTML = '<p>加载博客内容失败</p>';
+            }
+            
+            // Update breadcrumb
+            updateBreadcrumb(blogId);
+        }
+
+        function hideBlogDetail() {
+            // Show all blog articles
+            document.querySelectorAll('article[id^="blog-"]').forEach(article => {
+                article.style.display = 'flex';
+            });
+            
+            // Show pagination
+            document.querySelector('.flex.justify-center.mt-12.space-x-2').style.display = 'flex';
+            
+            // Hide all blog details
+            document.querySelectorAll('.blog-detail').forEach(detail => {
+                detail.classList.add('hidden');
+            });
+            
+            // Clear breadcrumb
+            clearBreadcrumb();
+        }
+
+        // --- 5. Breadcrumb Functions ---
+        function updateBreadcrumb(blogId) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const blogInfo = blogCategories[blogId];
+            
+            if (breadcrumb && blogInfo) {
+                breadcrumb.innerHTML = `
+                    <span>你的位置：</span>
+                    <a href="#blog" onclick="event.preventDefault(); hideBlogDetail();" class="text-brand-600 hover:text-brand-700">博客</a>
+                    <span class="text-slate-400 mx-1">></span>
+                    <span class="text-brand-600">${blogInfo.category}</span>
+                    <span class="text-slate-400 mx-1">></span>
+                    <span class="text-slate-700">${blogInfo.title}</span>
+                `;
+            }
+        }
+
+        function clearBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (breadcrumb) {
+                breadcrumb.innerHTML = `
+                    <span>你的位置：</span>
+                    <a href="#blog" onclick="event.preventDefault(); hideBlogDetail();" class="text-brand-600 hover:text-brand-700">博客</a>
+                `;
+            }
+        }
+
+        // Initialize breadcrumb
+        clearBreadcrumb();
+    </script>
+</body>
+</html>
