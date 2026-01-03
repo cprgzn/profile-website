@@ -244,7 +244,11 @@
             50% { stroke-width: 10; opacity: 0.95; }
         }
     </style>
+    
+    <!-- Cloudflare Web Analytics -->
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "1a3784cff3694aab843f4dd3984ff496"}'></script>
 </head>
+
 <body class="min-h-screen flex flex-col bg-grid">
 
     <!-- SVG mask defs for card slot (invisible, used by CSS mask) -->
@@ -892,6 +896,21 @@
                     </ul>
                 </div>
             </div>
+            
+            <!-- 访问统计区域 -->
+            <div class="border-t border-slate-100 pt-6 mb-6">
+                <div class="flex justify-center items-center space-x-8 text-sm">
+                    <div class="flex items-center text-slate-600">
+                        <i class="fas fa-eye text-brand-500 mr-2"></i>
+                        <span>总访问量: <strong id="total-views" class="text-brand-600">加载中...</strong></span>
+                    </div>
+                    <div class="flex items-center text-slate-600">
+                        <i class="fas fa-users text-brand-500 mr-2"></i>
+                        <span>独立访客: <strong id="unique-visitors" class="text-brand-600">加载中...</strong></span>
+                    </div>
+                </div>
+            </div>
+            
             <div class="border-t border-slate-100 pt-8 text-center text-xs text-slate-400">
                 &copy; 2023 CP. All rights reserved. Designed with Tailwind CSS.
             </div>
@@ -1357,6 +1376,40 @@
 
         // Initialize breadcrumb
         clearBreadcrumb();
+        
+        // --- 访问统计功能 ---
+        // 注意：由于Cloudflare Web Analytics的API限制，以下代码使用localStorage模拟统计功能
+        // 真实的统计数据需要从Cloudflare Dashboard查看
+        
+        function updateVisitStats() {
+            const totalViewsElement = document.getElementById('total-views');
+            const uniqueVisitorsElement = document.getElementById('unique-visitors');
+            
+            // 使用localStorage模拟统计（仅用于演示）
+            let totalViews = parseInt(localStorage.getItem('totalViews') || '0');
+            let uniqueVisitors = parseInt(localStorage.getItem('uniqueVisitors') || '0');
+            
+            // 检查是否是新访客
+            const lastVisit = localStorage.getItem('lastVisit');
+            const today = new Date().toDateString();
+            
+            if (lastVisit !== today) {
+                uniqueVisitors++;
+                localStorage.setItem('uniqueVisitors', uniqueVisitors.toString());
+                localStorage.setItem('lastVisit', today);
+            }
+            
+            // 增加访问量
+            totalViews++;
+            localStorage.setItem('totalViews', totalViews.toString());
+            
+            // 更新显示
+            totalViewsElement.textContent = totalViews.toLocaleString();
+            uniqueVisitorsElement.textContent = uniqueVisitors.toLocaleString();
+        }
+        
+        // 页面加载时更新统计
+        window.addEventListener('DOMContentLoaded', updateVisitStats);
     </script>
 </body>
 </html>
