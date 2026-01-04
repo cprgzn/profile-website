@@ -1377,6 +1377,27 @@
         // Initialize breadcrumb
         clearBreadcrumb();
         
+        // --- 从Cloudflare Worker记录访问 ---
+        async function trackVisit() {
+            try {
+                const response = await fetch('https://profile-website-stats.m1756618633.workers.dev/track', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to track visit');
+                    return null;
+                }
+                
+                const data = await response.json();
+                console.log('Visit tracked:', data);
+                return data;
+            } catch (error) {
+                console.error('Error tracking visit:', error);
+                return null;
+            }
+        }
+        
         // --- 从Cloudflare Worker获取统计数据 ---
         async function fetchStatsFromWorker() {
             const totalViewsElement = document.getElementById('total-views');
@@ -1404,8 +1425,11 @@
             }
         }
         
-        // 页面加载时获取统计数据
-        window.addEventListener('DOMContentLoaded', fetchStatsFromWorker);
+        // 页面加载时记录访问并获取统计数据
+        window.addEventListener('DOMContentLoaded', async () => {
+            await trackVisit();
+            await fetchStatsFromWorker();
+        });
     </script>
 </body>
 </html>
